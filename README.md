@@ -54,7 +54,7 @@ docker run -p9000:9000 --rm --name zslbox --mount source=zslkeys,target=/keys zs
 
 ### API Overview
 
-Checkout [zslbox.proto]() for a quick overview of the APIs ZSLBox offers.
+Checkout [zslbox.proto](https://github.com/ConsenSys/zslbox/blob/master/zsl/zslbox.proto) for a quick overview of the APIs ZSLBox offers.
 
 ## Running the tests
 
