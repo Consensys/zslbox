@@ -1,0 +1,156 @@
+// Copyright 2018 ConsenSys AG
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package zsl;
+
+
+/*
+ Provides services to compute and verify proofs
+ for shielding, unshielding and shielded transfer 
+ operations 
+ */
+service ZSLBox {
+	// CreateShielding computes a zkSNARK and a note commitment for given note.
+	// Also returns a sendNullifier to ensure note.Rho (random) is unique
+	rpc CreateShielding(Note) returns (Shielding);
+
+	// CreateUnshielding computes a zkSNARK, nullifiers for given input, using Unshielding circuit
+	rpc CreateUnshielding(ShieldedInput) returns (Unshielding);
+
+	// CreateShieldedTransfer takes 2 notes as inputs (known Sk) and 2 desired output notes.
+	// It returns the zkSNARK, the spend nullifiers for the inputs, and the commitments & send nullifiers for outputs
+	rpc CreateShieldedTransfer(ShieldedTransferRequest) returns (ShieldedTransfer);
+
+	// VerifyShielding ensures that the provided Shielding proof is valid. It takes as input the zkSNARK,
+	// the send nullifier, commitment and value of the shielded note. 
+	rpc VerifyShielding(VerifyShieldingRequest) returns (Result);
+
+	// VerifyUnshielding ensures that the provided Unshielding proof is valid. It takes as input the zkSNARK,
+	// the spend nullifier, the tree root and value of the shielded note. 
+	rpc VerifyUnshielding(VerifyUnshieldingRequest) returns (Result);
+
+	// VerifyShieldedTransfer ensures that the provided shielded transfer proof is valid. 
+	// It takes as input the zkSNARK, treeRoot, spend nullifiers for inputs and send nullifiers & commitments
+	// for outputs
+	rpc VerifyShieldedTransfer(VerifyShieldedTransferRequest) returns (Result);
+
+	// GetCommitment returns SHA256(note.Rho || note.Pk || note.Value)
+	// where note.Value is in little endian byte order
+	rpc GetCommitment(Note) returns (Bytes);
+
+	// GetSendNullifier returns SHA256(0x00 || note.Rho)
+	rpc GetSendNullifier(Note) returns (Bytes);
+
+	// GetSpendNullifier returns SHA256(0x01 || shieldedInput.Rho || shieldedInput.Sk)
+	rpc GetSpendNullifier(ShieldedInput) returns (Bytes);
+
+	// GetNewAddress returns a tuple (Pk, Sk) where Pk is the paying (public) key and Sk is the secret key
+	rpc GetNewAddress(Void) returns (ZAddress);
+
+	// Sha256Compress applies SHA-256 to one input block, excluding the padding step specified in [NIST2015, Section 5.1]
+	rpc Sha256Compress(Bytes) returns (Bytes);
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// Cross operation data structs
+message ShieldedInput {
+	bytes sk = 1;
+	bytes rho = 2;
+	uint64 value = 3;
+	uint64 treeIndex = 4; // witness 1
+	repeated bytes treePath = 5; // witness 2
+}
+
+message Note {
+	bytes pk = 1;
+	bytes rho = 2;
+	uint64 value = 3;
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// ShieldedTransfer data structs
+// note: a shielded transfer has 2 inputs and 2 outputs (UTXO model)
+message ShieldedTransferRequest {
+	repeated ShieldedInput inputs = 1;
+	repeated Note outputs = 2;
+}
+
+message VerifyShieldedTransferRequest {
+	ShieldedTransfer shieldedTransfer = 1;
+	bytes treeRoot = 2;
+}
+
+message ShieldedTransfer {
+	bytes snark = 1;
+	// input spend nullifiers
+	repeated bytes spendNullifiers = 2;
+
+	// output send nullifiers & commitments
+	repeated bytes sendNullifiers = 3;
+	repeated bytes commitments = 4;
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// Shielding data structs
+message VerifyShieldingRequest {
+	Shielding shielding = 1;
+	uint64 value = 2;
+}
+
+message Shielding {
+	bytes snark = 1;
+	bytes commitment = 2;
+	bytes sendNullifier = 3;
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// Unshielding data structs
+message VerifyUnshieldingRequest {
+	bytes snark = 1;
+	bytes spendNullifier = 2;
+	bytes treeRoot = 3;
+	uint64 value = 4;
+}
+
+message Unshielding {
+	bytes snark = 1;
+	bytes spendNullifier = 2; // nullifies the unshielded input note
+	bytes sendNullifier = 3; // ensures rho (randomness) isn't re-used
+}
+
+
+
+// -------------------------------------------------------------------------------------------------
+// Other
+message ZAddress {
+	bytes sk = 1;
+	bytes pk = 2;
+}
+
+message Bytes {
+	bytes bytes = 1;
+}
+
+message Result {
+	bool result = 1;
+	string message = 2;
+}
+
+message Void {}

@@ -1,0 +1,17 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.10
+      
+    working_directory: /go/src/github.com/consensys/zslbox
+    steps:
+      - checkout
+      - run: if [[ -n $(gofmt -l .) ]]; then echo "Please run gofmt"; exit 1; fi
+
+      - setup_remote_docker:
+          docker_layer_caching: true
+
+       # build the application image
+      - run: docker build -t zslbox:$CIRCLE_BRANCH . -f Dockerfile.circleci 
+      - run: docker run -it zslbox:$CIRCLE_BRANCH go vet -v ./...

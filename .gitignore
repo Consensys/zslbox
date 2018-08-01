@@ -1,0 +1,9 @@
+*.crt
+*.key
+*.csr
+zslbox
+**/*.DS_Store
+**/*.pk
+**/*.vk
+**/*.a
+**/*.o
