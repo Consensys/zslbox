@@ -9,7 +9,7 @@ ZSLBox is blockchain agnostic, and can easily be integrated in Ethereum clients 
 
 See [running the tests](#running-the-tests) for example usage.
 
-See [simple geth fork]() for example integration.
+See [simple geth fork](https://github.com/gbotrel/go-ethereum) for example integration.
 
 The [ZCash protocol specification](https://github.com/zcash/zips/blob/master/protocol/protocol.pdf) is a must read.
 
