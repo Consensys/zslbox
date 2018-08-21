@@ -3,22 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net"
+	"net/http"
 	"os"
 
 	"github.com/consensys/zslbox/snark"
 	"github.com/consensys/zslbox/zsl"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 // -------------------------------------------------------------------------------------------------
 // flags
 var (
-	fCertFile = flag.String("cert_file", "server.crt", "TLS cert file")
-	fKeyFile  = flag.String("key_file", "server.key", "TLS key file")
-	fGrpcPort = flag.Int("port", 9000, "gRPC server port")
+	fCertFile  = flag.String("cert_file", "server.crt", "TLS cert file")
+	fKeyFile   = flag.String("key_file", "server.key", "TLS key file")
+	fHTTPPort  = flag.Int("http", 9001, "gRPC server http port")
+	fHTTPSPort = flag.Int("https", 9000, "gRPC server https port")
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -43,6 +44,9 @@ func init() {
 //go:generate protoc -I zsl/ zsl/zslbox.proto --go_out=plugins=grpc:zsl
 //go:generate go install ./zsl/
 //go:generate echo generated zsl/zslbox.pb.go
+//go:generate protoc -I zsl/ zsl/zslbox.proto --gopherjs_out=plugins=grpc:zsl/gopherjs
+//go:generate mv zsl/gopherjs/zslbox.pb.gopherjs.go zsl/gopherjs/zslbox.pb.gopherjs
+//go:generate echo generated zsl/gopherjs/zslbox.pb.gopherjs
 func main() {
 	log.Info("starting zslbox")
 	defer log.Warn("stopping zslbox")
@@ -54,22 +58,28 @@ func main() {
 	// Parse flags
 	flag.Parse()
 
-	// Configure gRPC server
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *fGrpcPort))
-	if err != nil {
-		log.Fatalw("failed to listen to tcp port", "error", err)
-	} else {
-		log.Debugw("grpc server listening", "port", *fGrpcPort)
-	}
-	creds, err := credentials.NewServerTLSFromFile(*fCertFile, *fKeyFile)
-	if err != nil {
-		log.Fatalw("failed to generate credentials for tls grpc", "error", err)
+	// init gRPC server
+	grpcServer := grpc.NewServer()
+	zsl.RegisterZSLBoxServer(grpcServer, NewZSLServer())
+
+	wrappedServer := grpcweb.WrapServer(grpcServer, grpcweb.WithWebsockets(true))
+	handler := func(resp http.ResponseWriter, req *http.Request) {
+		wrappedServer.ServeHTTP(resp, req)
 	}
 
-	// starts gRPC server
-	grpcServer := grpc.NewServer([]grpc.ServerOption{grpc.Creds(creds)}...)
-	zsl.RegisterZSLBoxServer(grpcServer, NewZSLServer())
-	log.Fatal(grpcServer.Serve(lis))
+	httpServer := http.Server{
+		Addr:    fmt.Sprintf(":%d", *fHTTPPort),
+		Handler: http.HandlerFunc(handler),
+	}
+	httpsServer := http.Server{
+		Addr:    fmt.Sprintf(":%d", *fHTTPSPort),
+		Handler: http.HandlerFunc(handler),
+	}
+	go func() {
+		log.Fatal(httpServer.ListenAndServe())
+	}()
+
+	log.Fatal(httpsServer.ListenAndServeTLS(*fCertFile, *fKeyFile))
 }
 
 func newZapConfig() zap.Config {

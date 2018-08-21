@@ -72,7 +72,6 @@ func (server *ZSLServer) GetNewAddress(context.Context, *zsl.Void) (*zsl.ZAddres
 
 // Sha256Compress applies SHA-256 to one input block, excluding the padding step specified in [NIST2015, Section 5.1]
 func (server *ZSLServer) Sha256Compress(ctx context.Context, input *zsl.Bytes) (*zsl.Bytes, error) {
-	log.Debug("Sha256Compress")
 	h := sha256.NewCompress()
 	h.Write(input.Bytes)
 	return &zsl.Bytes{Bytes: h.Compress()}, nil
@@ -151,17 +150,19 @@ func (server *ZSLServer) CreateShieldedTransfer(ctx context.Context, request *zs
 // VerifyShielding ensures that the provided Shielding proof is valid. It takes as input the zkSNARK,
 // the send nullifier, commitment and value of the shielded note.
 func (server *ZSLServer) VerifyShielding(ctx context.Context, request *zsl.VerifyShieldingRequest) (*zsl.Result, error) {
-	log.Debugw("VerifyShielding",
-		"snark", hex.EncodeToString(request.Shielding.Snark),
-		"sendNullifier", hex.EncodeToString(request.Shielding.SendNullifier),
-		"commitment", hex.EncodeToString(request.Shielding.Commitment),
-		"value", request.Value,
-	)
 	if len(request.Shielding.Snark) != zsl.ProofSize {
 		return nil, grpc.Errorf(codes.InvalidArgument, "proof size must be %d", zsl.ProofSize)
 	}
 
 	isValid := snark.VerifyShielding(request.Shielding.Snark, request.Shielding.SendNullifier, request.Shielding.Commitment, request.Value)
+
+	log.Debugw("VerifyShielding",
+		"snark", hex.EncodeToString(request.Shielding.Snark),
+		"sendNullifier", hex.EncodeToString(request.Shielding.SendNullifier),
+		"commitment", hex.EncodeToString(request.Shielding.Commitment),
+		"value", request.Value,
+		"valid", isValid,
+	)
 
 	return &zsl.Result{Result: isValid}, nil
 }
@@ -169,17 +170,19 @@ func (server *ZSLServer) VerifyShielding(ctx context.Context, request *zsl.Verif
 // VerifyUnshielding ensures that the provided Unshielding proof is valid. It takes as input the zkSNARK,
 // the spend nullifier, the tree root and value of the shielded note.
 func (server *ZSLServer) VerifyUnshielding(ctx context.Context, request *zsl.VerifyUnshieldingRequest) (*zsl.Result, error) {
-	log.Debugw("VerifyUnshielding",
-		"snark", hex.EncodeToString(request.Snark),
-		"spendNullifier", hex.EncodeToString(request.SpendNullifier),
-		"treeRoot", hex.EncodeToString(request.TreeRoot),
-		"value", request.Value,
-	)
 	if len(request.Snark) != zsl.ProofSize {
 		return nil, grpc.Errorf(codes.InvalidArgument, "proof size must be %d", zsl.ProofSize)
 	}
 
 	isValid := snark.VerifyUnshielding(request.Snark, request.SpendNullifier, request.TreeRoot, request.Value)
+
+	log.Debugw("VerifyUnshielding",
+		"snark", hex.EncodeToString(request.Snark),
+		"spendNullifier", hex.EncodeToString(request.SpendNullifier),
+		"treeRoot", hex.EncodeToString(request.TreeRoot),
+		"value", request.Value,
+		"valid", isValid,
+	)
 
 	return &zsl.Result{Result: isValid}, nil
 }
@@ -197,6 +200,15 @@ func (server *ZSLServer) VerifyShieldedTransfer(ctx context.Context, request *zs
 		return nil, grpc.Errorf(codes.InvalidArgument, "proof size must be %d", zsl.ProofSize)
 	}
 
+	isValid := snark.VerifyTransfer(request.ShieldedTransfer.Snark,
+		request.TreeRoot,
+		request.ShieldedTransfer.SpendNullifiers[0],
+		request.ShieldedTransfer.SpendNullifiers[1],
+		request.ShieldedTransfer.SendNullifiers[0],
+		request.ShieldedTransfer.SendNullifiers[1],
+		request.ShieldedTransfer.Commitments[0],
+		request.ShieldedTransfer.Commitments[1])
+
 	log.Debugw("VerifyShieldedTransfer",
 		"snark", hex.EncodeToString(request.ShieldedTransfer.Snark),
 		"treeRoot", hex.EncodeToString(request.TreeRoot),
@@ -206,16 +218,8 @@ func (server *ZSLServer) VerifyShieldedTransfer(ctx context.Context, request *zs
 		"send_nf_2", hex.EncodeToString(request.ShieldedTransfer.SendNullifiers[1]),
 		"commitment_1", hex.EncodeToString(request.ShieldedTransfer.Commitments[0]),
 		"commitment_2", hex.EncodeToString(request.ShieldedTransfer.Commitments[1]),
+		"valid", isValid,
 	)
-
-	isValid := snark.VerifyTransfer(request.ShieldedTransfer.Snark,
-		request.TreeRoot,
-		request.ShieldedTransfer.SpendNullifiers[0],
-		request.ShieldedTransfer.SpendNullifiers[1],
-		request.ShieldedTransfer.SendNullifiers[0],
-		request.ShieldedTransfer.SendNullifiers[1],
-		request.ShieldedTransfer.Commitments[0],
-		request.ShieldedTransfer.Commitments[1])
 
 	return &zsl.Result{Result: isValid}, nil
 }
