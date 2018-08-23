@@ -23,7 +23,7 @@ WORKDIR "/libsnark"
 RUN echo "add_subdirectory(libzsl)" >> /libsnark/CMakeLists.txt
 RUN mkdir build && \
  	cd build && \
- 	cmake -DCMAKE_CXX_FLAGS='-Wno-unused-variable -Wno-unused-parameter' -DMULTICORE=ON -DLOWMEM=ON -DCURVE=ALT_BN128 -DWITH_SUPERCOP=OFF -DUSE_PT_COMPRESSION=OFF -DWITH_PROCPS=OFF .. && \
+ 	cmake -DCMAKE_CXX_FLAGS='-Wno-unused-variable -Wno-unused-parameter' -DMULTICORE=ON -DLOWMEM=OFF -DCURVE=ALT_BN128 -DWITH_SUPERCOP=OFF -DUSE_PT_COMPRESSION=OFF -DWITH_PROCPS=OFF .. && \
  	make && \
  	cp /libsnark/build/libzsl/libzsl.a /root/ && \
  	cp /libsnark/build/depends/libff/libff/libff.a /root/ && \

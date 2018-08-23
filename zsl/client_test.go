@@ -86,7 +86,7 @@ func TestShieldedTransfer(t *testing.T) {
 	emptyPath := make([][]byte, TreeDepth)
 	for i := 0; i < TreeDepth; i++ {
 		emptyPath[i] = make([]byte, 32)
-		copy(emptyPath[i], tree.emptyRootsByHeight[i][:])
+		copy(emptyPath[i], tree.EmptyRootsByHeight[i][:])
 	}
 
 	// CreateShieldedTransfer inputs
@@ -123,6 +123,7 @@ func TestShieldedTransfer(t *testing.T) {
 
 	// Now let's verify our proof.
 	treeRoot := tree.Root()
+	t.Log("verifying shielded transfer")
 	verifyResult, err := client.ZSLBox.VerifyShieldedTransfer(context.Background(),
 		&VerifyShieldedTransferRequest{ShieldedTransfer: shielded, TreeRoot: treeRoot[:]})
 	if err != nil {
@@ -168,6 +169,7 @@ func TestShielding(t *testing.T) {
 	}
 
 	// now let's verify our proof.
+	t.Log("verifying shielding")
 	verifyResult, err := client.ZSLBox.VerifyShielding(context.Background(),
 		&VerifyShieldingRequest{Shielding: shielding, Value: note.Value})
 	if err != nil {
@@ -238,14 +240,17 @@ func TestUnshielding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// verify unshielding
 	treeRoot := tree.Root()
+
+	// verify unshielding
+
 	verifyRequest := &VerifyUnshieldingRequest{
 		Snark:          unshielding.Snark,
 		SpendNullifier: unshielding.SpendNullifier,
 		Value:          note.Value,
 		TreeRoot:       treeRoot[:],
 	}
+	t.Log("verifying unshielding")
 	verifyResult, err := client.ZSLBox.VerifyUnshielding(context.Background(), verifyRequest)
 	if err != nil {
 		t.Fatal(err)

@@ -27,10 +27,12 @@ These instructions will get you a copy of the project up and running on your loc
 ### Running
 
 The easiest way to build and run ZSLBox is through [docker](https://docs.docker.com/install/).
+**zkSNARK computation is memory hungry, you'll need to increase Docker RAM allocation (default is 2GB)**
+
 ```
 docker pull pegasystech/zslbox:latest
 docker volume create zslkeys
-docker run -p9000:9000 -d --name zslbox --mount source=zslkeys,target=/keys pegasystech/zslbox:latest 
+docker run -p9000:9000 -p9001:9001 -d --name zslbox --mount source=zslkeys,target=/keys pegasystech/zslbox:latest 
 ```
 
 **Note:** the proving and verifying keys will be generated (aka *trusted setup*) only if not present in `/keys`. It takes about a minute on a standard laptop. 
@@ -59,7 +61,7 @@ docker volume create zslkeys
 Start ZSLBox
 
 ```
-docker run -p9000:9000 --rm --name zslbox --mount source=zslkeys,target=/keys zslbox:latest 
+docker run -p9000:9000 -p9001:9001 --rm --name zslbox --mount source=zslkeys,target=/keys zslbox:latest 
 ```
 
 
@@ -143,6 +145,10 @@ verifyRequest := &VerifyUnshieldingRequest{
 }
 verifyResult, err := client.ZSLBox.VerifyUnshielding(context.Background(), verifyRequest)
 ```
+
+## Known issues
+
+* ZSLBox container leaks memory. More specifically, the "CreateShieldedTransfer" has a 20% failure rate on a large number of tests (Shielding and Unshielding are close to 0% failure). Not a graceful crash.  
 
 ## Developers
 

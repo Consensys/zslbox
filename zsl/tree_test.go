@@ -26,7 +26,7 @@ func TestEmptyRoot(t *testing.T) {
 	root := tree.Root()
 
 	// compares it with empty root at height TreeDepth
-	if !bytes.Equal(root[:], tree.emptyRootsByHeight[TreeDepth][:]) {
+	if !bytes.Equal(root[:], tree.EmptyRootsByHeight[TreeDepth][:]) {
 		t.Fatal("expected root of empty tree to be equal to empty root")
 	}
 
@@ -57,8 +57,8 @@ func TestWitnesses(t *testing.T) {
 		t.Fatal("expected length of auth path to be same as depth")
 	}
 
-	r1 := tree.emptyRootsByHeight[0]
-	r2 := tree.emptyRootsByHeight[1]
+	r1 := tree.EmptyRootsByHeight[0]
+	r2 := tree.EmptyRootsByHeight[1]
 
 	if !bytes.Equal(treePath[0], r1[:]) {
 		t.Fatal("treePath[0] should be equal to leaf(1)")

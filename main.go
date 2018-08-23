@@ -53,6 +53,7 @@ func main() {
 	defer logger.Sync() // flushes buffer, if any
 
 	// Init snark module (will create params if mounted volume on /keys doesn't exist. )
+	log.Info("initializing libzsl and loading keys...")
 	snark.Init(zsl.TreeDepth, "/keys")
 
 	// Parse flags
@@ -75,6 +76,8 @@ func main() {
 		Addr:    fmt.Sprintf(":%d", *fHTTPSPort),
 		Handler: http.HandlerFunc(handler),
 	}
+
+	log.Info("starting grpc server")
 	go func() {
 		log.Fatal(httpServer.ListenAndServe())
 	}()

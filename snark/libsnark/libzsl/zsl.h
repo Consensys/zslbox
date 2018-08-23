@@ -54,12 +54,12 @@ extern "C" {
         uint64_t value
     );
 
+    void zsl_load_keys();
     void zsl_paramgen_unshielding();
 
     void zsl_paramgen_transfer();
 
     void zsl_prove_transfer(
-        void *output_proof_ptr,
         void *input_rho_ptr_1,
         void *input_pk_ptr_1,
         uint64_t input_value_1,
@@ -75,7 +75,8 @@ extern "C" {
         uint64_t output_value_1,
         void *output_rho_ptr_2,
         void *output_pk_ptr_2,
-        uint64_t output_value_2
+        uint64_t output_value_2,
+        void *output_proof_ptr
     );
 
     bool zsl_verify_transfer(

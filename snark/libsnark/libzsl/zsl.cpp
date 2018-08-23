@@ -28,6 +28,13 @@ using namespace std;
 
 namespace zsl {
     size_t TREE_DEPTH = 29;
+
+    r1cs_ppzksnark_verification_key<default_r1cs_ppzksnark_pp> vkShielding;
+    r1cs_ppzksnark_verification_key<default_r1cs_ppzksnark_pp> vkUnshielding;
+    r1cs_ppzksnark_verification_key<default_r1cs_ppzksnark_pp> vkTransfer;
+    r1cs_ppzksnark_proving_key<default_r1cs_ppzksnark_pp> pkShielding;
+    r1cs_ppzksnark_proving_key<default_r1cs_ppzksnark_pp> pkUnshielding;
+    r1cs_ppzksnark_proving_key<default_r1cs_ppzksnark_pp> pkTransfer;
 }
 
 #include "gadgets.cpp"
@@ -37,13 +44,12 @@ typedef libff::Fr<default_r1cs_ppzksnark_pp> FieldT;
 #include <fstream>
 
 
-
 void zsl_initialize(uint tree_depth)
 {
     zsl::TREE_DEPTH = tree_depth;
     default_r1cs_ppzksnark_pp::init_public_params();
-    libff::inhibit_profiling_info = true;
-    libff::inhibit_profiling_counters = true;
+    libff::inhibit_profiling_info = false;
+    libff::inhibit_profiling_counters = false;
 }
 
 
@@ -68,6 +74,17 @@ void loadFromFile(string path, T& objIn) {
     ss.rdbuf()->pubseekpos(0, ios_base::in);
     ss >> objIn;
 }
+
+void zsl_load_keys() {
+    loadFromFile("/keys/shielding.vk", zsl::vkShielding);
+    loadFromFile("/keys/unshielding.vk", zsl::vkUnshielding);
+    loadFromFile("/keys/transfer.vk", zsl::vkTransfer);
+
+    loadFromFile("/keys/shielding.pk", zsl::pkShielding);
+    loadFromFile("/keys/unshielding.pk", zsl::pkUnshielding);
+    loadFromFile("/keys/transfer.pk", zsl::pkTransfer);
+}
+
 
 bool zsl_verify_shielding(
     void *proof_ptr,
@@ -100,10 +117,7 @@ bool zsl_verify_shielding(
         value
     );
 
-    r1cs_ppzksnark_verification_key<default_r1cs_ppzksnark_pp> verification_key;
-    loadFromFile("/keys/shielding.vk", verification_key);
-
-    if (!r1cs_ppzksnark_verifier_strong_IC<default_r1cs_ppzksnark_pp>(verification_key, witness_map, proof_obj)) {
+    if (!r1cs_ppzksnark_verifier_strong_IC<default_r1cs_ppzksnark_pp>(zsl::vkShielding, witness_map, proof_obj)) {
         return false;
     } else {
         return true;
@@ -141,10 +155,8 @@ bool zsl_verify_unshielding(
         value
     );
 
-    r1cs_ppzksnark_verification_key<default_r1cs_ppzksnark_pp> verification_key;
-    loadFromFile("/keys/unshielding.vk", verification_key);
 
-    if (!r1cs_ppzksnark_verifier_strong_IC<default_r1cs_ppzksnark_pp>(verification_key, witness_map, proof_obj)) {
+    if (!r1cs_ppzksnark_verifier_strong_IC<default_r1cs_ppzksnark_pp>(zsl::vkUnshielding, witness_map, proof_obj)) {
         return false;
     } else {
         return true;
@@ -183,13 +195,10 @@ void zsl_prove_unshielding(
         tree_position,
         auth_path
     );
-    pb.get_constraint_system().swap_AB_if_beneficial(); //TODO check this modification.
+    // pb.get_constraint_system().swap_AB_if_beneficial(); //TODO check this modification.
     assert(pb.is_satisfied());
 
-    r1cs_ppzksnark_proving_key<default_r1cs_ppzksnark_pp> proving_key;
-    loadFromFile("/keys/unshielding.pk", proving_key);
-
-    auto proof = r1cs_ppzksnark_prover<default_r1cs_ppzksnark_pp>(proving_key, pb.primary_input(), pb.auxiliary_input());
+    auto proof = r1cs_ppzksnark_prover<default_r1cs_ppzksnark_pp>(zsl::pkUnshielding, pb.primary_input(), pb.auxiliary_input());
 
     stringstream proof_data;
     proof_data << proof;
@@ -224,12 +233,10 @@ void zsl_prove_shielding(
         // value
         value
     );
-    pb.get_constraint_system().swap_AB_if_beneficial(); // TODO check this modification
+    // pb.get_constraint_system().swap_AB_if_beneficial(); // TODO check this modification
     assert(pb.is_satisfied());
 
-    r1cs_ppzksnark_proving_key<default_r1cs_ppzksnark_pp> proving_key;
-    loadFromFile("/keys/shielding.pk", proving_key);
-    auto proof = r1cs_ppzksnark_prover<default_r1cs_ppzksnark_pp>(proving_key, pb.primary_input(), pb.auxiliary_input());
+    auto proof = r1cs_ppzksnark_prover<default_r1cs_ppzksnark_pp>(zsl::pkShielding, pb.primary_input(), pb.auxiliary_input());
     stringstream proof_data;
     proof_data << proof;
     auto proof_str = proof_data.str();
@@ -283,10 +290,8 @@ bool zsl_verify_transfer(
         vector<unsigned char>(cm_2, cm_2+32)
     );
 
-    r1cs_ppzksnark_verification_key<default_r1cs_ppzksnark_pp> verification_key;
-    loadFromFile("/keys/transfer.vk", verification_key);
 
-    if (!r1cs_ppzksnark_verifier_strong_IC<default_r1cs_ppzksnark_pp>(verification_key, witness_map, proof_obj)) {
+    if (!r1cs_ppzksnark_verifier_strong_IC<default_r1cs_ppzksnark_pp>(zsl::vkTransfer, witness_map, proof_obj)) {
         return false;
     } else {
         return true;
@@ -294,7 +299,6 @@ bool zsl_verify_transfer(
 }
 
 void zsl_prove_transfer(
-    void *output_proof_ptr,
     void *input_rho_ptr_1,
     void *input_pk_ptr_1,
     uint64_t input_value_1,
@@ -310,7 +314,8 @@ void zsl_prove_transfer(
     uint64_t output_value_1,
     void *output_rho_ptr_2,
     void *output_pk_ptr_2,
-    uint64_t output_value_2
+    uint64_t output_value_2,
+    void *output_proof_ptr
 )
 {
     unsigned char *output_proof = reinterpret_cast<unsigned char *>(output_proof_ptr);
@@ -363,13 +368,11 @@ void zsl_prove_transfer(
         vector<unsigned char>(output_pk_2, output_pk_2 + 32),
         output_value_2
     );
-    pb.get_constraint_system().swap_AB_if_beneficial(); // TODO check this
+    // pb.get_constraint_system().swap_AB_if_beneficial(); // TODO check this
     assert(pb.is_satisfied());
 
-    r1cs_ppzksnark_proving_key<default_r1cs_ppzksnark_pp> proving_key;
-    loadFromFile("/keys/transfer.pk", proving_key);
 
-    auto proof = r1cs_ppzksnark_prover<default_r1cs_ppzksnark_pp>(proving_key, pb.primary_input(), pb.auxiliary_input());
+    auto proof = r1cs_ppzksnark_prover<default_r1cs_ppzksnark_pp>(zsl::pkTransfer, pb.primary_input(), pb.auxiliary_input());
 
     stringstream proof_data;
     proof_data << proof;

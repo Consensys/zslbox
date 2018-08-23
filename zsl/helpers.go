@@ -14,6 +14,11 @@
 
 package zsl
 
+import (
+	"encoding/hex"
+	"fmt"
+)
+
 func NewShielding() *Shielding {
 	toReturn := &Shielding{}
 	toReturn.Snark = make([]byte, ProofSize)
@@ -61,4 +66,21 @@ func NewVerifyShieldedTransferRequest() *VerifyShieldedTransferRequest {
 	toReturn.ShieldedTransfer = NewShieldedTransfer()
 
 	return toReturn
+}
+
+// message Unshielding {
+// 	bytes snark = 1;
+// 	bytes spendNullifier = 2; // nullifies the unshielded input note
+// 	bytes sendNullifier = 3; // ensures rho (randomness) isn't re-used
+// }
+
+func (unshielding *Unshielding) DebugString() string {
+	return fmt.Sprintf("%18s: %s\n%18s: %s\n%18s: %s\n",
+		"snark",
+		hex.EncodeToString(unshielding.Snark),
+		"spendNullifier",
+		hex.EncodeToString(unshielding.SpendNullifier),
+		"sendNullifier",
+		hex.EncodeToString(unshielding.SendNullifier),
+	)
 }

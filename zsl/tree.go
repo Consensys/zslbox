@@ -29,7 +29,7 @@ type Tree struct {
 	nbCommitments      uint
 	commitmentsIndices map[Hash]uint
 	commitments        map[uint]Hash
-	emptyRootsByHeight []Hash
+	EmptyRootsByHeight []Hash
 }
 
 // NewTree returns a new Merkle Tree of fixed depth depth
@@ -40,17 +40,17 @@ func NewTree(depth uint) *Tree {
 	// initialize data structs
 	toReturn.commitmentsIndices = make(map[Hash]uint)
 	toReturn.commitments = make(map[uint]Hash)
-	toReturn.emptyRootsByHeight = make([]Hash, depth+1)
+	toReturn.EmptyRootsByHeight = make([]Hash, depth+1)
 
 	// create empty roots
 	var node Hash // initialized to 0x000000..., empty leaf value
-	toReturn.emptyRootsByHeight[0] = node
+	toReturn.EmptyRootsByHeight[0] = node
 
 	// starting from the leaf to the root, each depth level emptyRoot value
 	// equals a shaCompress of it's descendant
 	for h := uint(1); h <= depth; h++ {
 		node = shaCompress(node, node)
-		toReturn.emptyRootsByHeight[h] = node
+		toReturn.EmptyRootsByHeight[h] = node
 	}
 
 	return toReturn
@@ -103,7 +103,7 @@ func (tree *Tree) AddCommitment(commitment Hash) (uint, error) {
 func (tree *Tree) computeSubTree(index, height uint) Hash {
 	if tree.nbCommitments <= (index << height) {
 		// if the other half of the tree is empty
-		return tree.emptyRootsByHeight[height]
+		return tree.EmptyRootsByHeight[height]
 	}
 	if height == 0 {
 		// we reached a leaf, return the leaf value (commitment)

@@ -53,127 +53,208 @@ func Init(treeDepth uint, keyDir string) {
 			fmt.Printf("couldn't find %s, generating...\n", unshieldingPath)
 			C.zsl_paramgen_unshielding()
 		}
+
+		C.zsl_load_keys()
 	})
 }
 
-func ProveTransfer(input_rho_1 []byte,
-	input_sk_1 []byte,
-	input_value_1 uint64,
-	input_tree_position_1 uint64,
-	input_authentication_path_1 [][]byte,
-	input_rho_2 []byte,
-	input_sk_2 []byte,
-	input_value_2 uint64,
-	input_tree_position_2 uint64,
-	input_authentication_path_2 [][]byte,
-	output_rho_1 []byte,
-	output_pk_1 []byte,
-	output_value_1 uint64,
-	output_rho_2 []byte,
-	output_pk_2 []byte,
-	output_value_2 uint64) []byte {
+func ProveTransfer(inputRho1 []byte,
+	inputSk1 []byte,
+	inputValue1 uint64,
+	inputTreeIndex1 uint64,
+	inputTreePath1 [][]byte,
+	inputRho2 []byte,
+	inputSk2 []byte,
+	inputValue2 uint64,
+	inputTreeIndex2 uint64,
+	inputTreePath2 [][]byte,
+	outputRho1 []byte,
+	outputPk1 []byte,
+	outputValue1 uint64,
+	outputRho2 []byte,
+	outputPk2 []byte,
+	outputValue2 uint64) []byte {
 	toReturn := make([]byte, 584)
 
-	C.zsl_prove_transfer(unsafe.Pointer(&toReturn[0]),
-		unsafe.Pointer(&input_rho_1[0]),
-		unsafe.Pointer(&input_sk_1[0]),
-		C.uint64_t(input_value_1),
-		C.uint64_t(input_tree_position_1),
-		unsafe.Pointer(&input_authentication_path_1[0][0]),
-		unsafe.Pointer(&input_rho_2[0]),
-		unsafe.Pointer(&input_sk_2[0]),
-		C.uint64_t(input_value_2),
-		C.uint64_t(input_tree_position_2),
-		unsafe.Pointer(&input_authentication_path_2[0][0]),
-		unsafe.Pointer(&output_rho_1[0]),
-		unsafe.Pointer(&output_pk_1[0]),
-		C.uint64_t(output_value_1),
-		unsafe.Pointer(&output_rho_2[0]),
-		unsafe.Pointer(&output_pk_2[0]),
-		C.uint64_t(output_value_2))
+	// copy objects (malloc)
+	ptrInputRho1 := C.CBytes(inputRho1)
+	ptrInputRho2 := C.CBytes(inputRho2)
+	ptrInputSk1 := C.CBytes(inputSk1)
+	ptrInputSk2 := C.CBytes(inputSk2)
+	ptrInputTreePath1 := C.CBytes(parseTreePath(inputTreePath1))
+	ptrInputTreePath2 := C.CBytes(parseTreePath(inputTreePath2))
 
-	return toReturn
-}
+	ptrOutputPk1 := C.CBytes(outputPk1)
+	ptrOutputPk2 := C.CBytes(outputPk2)
+	ptrOutputRho1 := C.CBytes(outputRho1)
+	ptrOutputRho2 := C.CBytes(outputRho2)
 
-func VerifyTransfer(proof []byte,
-	anchor []byte,
-	spend_nf_1 []byte,
-	spend_nf_2 []byte,
-	send_nf_1 []byte,
-	send_nf_2 []byte,
-	cm_1 []byte,
-	cm_2 []byte) bool {
-	ret := C.zsl_verify_transfer(unsafe.Pointer(&proof[0]),
-		unsafe.Pointer(&anchor[0]),
-		unsafe.Pointer(&spend_nf_1[0]),
-		unsafe.Pointer(&spend_nf_2[0]),
-		unsafe.Pointer(&send_nf_1[0]),
-		unsafe.Pointer(&send_nf_2[0]),
-		unsafe.Pointer(&cm_1[0]),
-		unsafe.Pointer(&cm_2[0]))
+	defer func() {
+		C.free(ptrInputRho1)
+		C.free(ptrInputRho2)
+		C.free(ptrInputSk1)
+		C.free(ptrInputSk2)
+		C.free(ptrOutputPk1)
+		C.free(ptrOutputPk2)
+		C.free(ptrOutputRho1)
+		C.free(ptrOutputRho2)
+		C.free(ptrInputTreePath1)
+		C.free(ptrInputTreePath2)
+	}()
 
-	if ret {
-		return true
-	} else {
-		return false
-	}
-}
-
-func ProveShielding(rho []byte, pk []byte, value uint64) []byte {
-	toReturn := make([]byte, 584)
-
-	rho_ptr := C.CBytes(rho)
-	pk_ptr := C.CBytes(pk)
-
-	C.zsl_prove_shielding(rho_ptr, pk_ptr, C.uint64_t(value), unsafe.Pointer(&toReturn[0]))
-
-	C.free(rho_ptr)
-	C.free(pk_ptr)
-
-	return toReturn
-}
-
-func VerifyShielding(proof []byte, send_nf []byte, cm []byte, value uint64) bool {
-	send_nf_ptr := C.CBytes(send_nf)
-	cm_ptr := C.CBytes(cm)
-	ret := C.zsl_verify_shielding(unsafe.Pointer(&proof[0]), send_nf_ptr, cm_ptr, C.uint64_t(value))
-
-	C.free(send_nf_ptr)
-	C.free(cm_ptr)
-
-	if ret {
-		return true
-	} else {
-		return false
-	}
-}
-
-func ProveUnshielding(rho []byte,
-	sk []byte,
-	value uint64,
-	tree_position uint64,
-	authentication_path [][]byte) []byte {
-	toReturn := make([]byte, 584)
-
-	C.zsl_prove_unshielding(unsafe.Pointer(&rho[0]),
-		unsafe.Pointer(&sk[0]),
-		C.uint64_t(value),
-		C.uint64_t(tree_position),
-		unsafe.Pointer(&authentication_path[0][0]),
+	C.zsl_prove_transfer(ptrInputRho1,
+		ptrInputSk1,
+		C.uint64_t(inputValue1),
+		C.uint64_t(inputTreeIndex1),
+		ptrInputTreePath1,
+		ptrInputRho2,
+		ptrInputSk2,
+		C.uint64_t(inputValue2),
+		C.uint64_t(inputTreeIndex2),
+		ptrInputTreePath2,
+		ptrOutputRho1,
+		ptrOutputPk1,
+		C.uint64_t(outputValue1),
+		ptrOutputRho2,
+		ptrOutputPk2,
+		C.uint64_t(outputValue2),
 		unsafe.Pointer(&toReturn[0]))
 
 	return toReturn
 }
 
-func VerifyUnshielding(proof []byte, spend_nf []byte, rt []byte, value uint64) bool {
-	ret := C.zsl_verify_unshielding(unsafe.Pointer(&proof[0]),
-		unsafe.Pointer(&spend_nf[0]),
-		unsafe.Pointer(&rt[0]),
-		C.uint64_t(value))
+func ProveShielding(rho []byte, pk []byte, value uint64) []byte {
+	toReturn := make([]byte, 584)
 
-	if ret {
+	// copy objects (malloc)
+	ptrRho := C.CBytes(rho)
+	ptrPk := C.CBytes(pk)
+
+	defer func() {
+		C.free(ptrPk)
+		C.free(ptrRho)
+	}()
+
+	C.zsl_prove_shielding(ptrRho, ptrPk, C.uint64_t(value), unsafe.Pointer(&toReturn[0]))
+
+	return toReturn
+}
+
+func ProveUnshielding(rho []byte,
+	sk []byte,
+	value uint64,
+	treeIndex uint64,
+	treePath [][]byte) []byte {
+	toReturn := make([]byte, 584)
+
+	// copy objects (malloc)
+	ptrRho := C.CBytes(rho)
+	ptrSk := C.CBytes(sk)
+	ptrTreePath := C.CBytes(parseTreePath(treePath))
+
+	defer func() {
+		C.free(ptrSk)
+		C.free(ptrRho)
+		C.free(ptrTreePath)
+	}()
+
+	C.zsl_prove_unshielding(ptrRho,
+		ptrSk,
+		C.uint64_t(value),
+		C.uint64_t(treeIndex),
+		ptrTreePath,
+		unsafe.Pointer(&toReturn[0]))
+
+	return toReturn
+}
+
+func VerifyTransfer(proof []byte,
+	treeRoot []byte,
+	spendNullifier1 []byte,
+	spendNullifier2 []byte,
+	sendNullifier1 []byte,
+	sendNullifier2 []byte,
+	commitment1 []byte,
+	commitment2 []byte) bool {
+
+	// copy objects (malloc)
+	ptrProof := C.CBytes(proof)
+	ptrTreeRoot := C.CBytes(treeRoot)
+
+	ptrSendNullifier1 := C.CBytes(sendNullifier1)
+	ptrSendNullifier2 := C.CBytes(sendNullifier2)
+	ptrSpendNullifier1 := C.CBytes(spendNullifier1)
+	ptrSpendNullifier2 := C.CBytes(spendNullifier2)
+
+	ptrCommitment1 := C.CBytes(commitment1)
+	ptrCommitment2 := C.CBytes(commitment2)
+
+	defer func() {
+		C.free(ptrSendNullifier1)
+		C.free(ptrSendNullifier2)
+		C.free(ptrSpendNullifier1)
+		C.free(ptrSpendNullifier2)
+		C.free(ptrCommitment1)
+		C.free(ptrCommitment2)
+		C.free(ptrProof)
+		C.free(ptrTreeRoot)
+	}()
+
+	if C.zsl_verify_transfer(ptrProof,
+		ptrTreeRoot,
+		ptrSpendNullifier1,
+		ptrSpendNullifier2,
+		ptrSendNullifier1,
+		ptrSendNullifier2,
+		ptrCommitment1,
+		ptrCommitment2) {
 		return true
-	} else {
-		return false
 	}
+	return false
+}
+
+func VerifyShielding(proof []byte, sendNullifier []byte, commitment []byte, value uint64) bool {
+	// copy objects (malloc)
+	ptrSendNullifier := C.CBytes(sendNullifier)
+	ptrCommitment := C.CBytes(commitment)
+	ptrProof := C.CBytes(proof)
+
+	defer func() {
+		C.free(ptrSendNullifier)
+		C.free(ptrCommitment)
+		C.free(ptrProof)
+	}()
+
+	// call C function
+	if C.zsl_verify_shielding(ptrProof, ptrSendNullifier, ptrCommitment, C.uint64_t(value)) {
+		return true
+	}
+	return false
+}
+
+func VerifyUnshielding(proof []byte, spendNullifier []byte, treeRoot []byte, value uint64) bool {
+	// copy objects (malloc)
+	ptrSpendNullifier := C.CBytes(spendNullifier)
+	ptrTreeRoot := C.CBytes(treeRoot)
+	ptrProof := C.CBytes(proof)
+
+	defer func() {
+		C.free(ptrSpendNullifier)
+		C.free(ptrTreeRoot)
+		C.free(ptrProof)
+	}()
+
+	if C.zsl_verify_unshielding(ptrProof, ptrSpendNullifier, ptrTreeRoot, C.uint64_t(value)) {
+		return true
+	}
+	return false
+}
+
+func parseTreePath(treePath [][]byte) []byte {
+	concatPath := make([]byte, len(treePath)*32)
+	for k, v := range treePath {
+		i := k * 32
+		copy(concatPath[i:i+32], v)
+	}
+	return concatPath
 }
