@@ -53,7 +53,7 @@ func main() {
 	defer logger.Sync() // flushes buffer, if any
 
 	// Init snark module (will create params if mounted volume on /keys doesn't exist. )
-	log.Info("initializing libzsl and loading keys...")
+	log.Info("initializing libzsl")
 	snark.Init(zsl.TreeDepth, "/keys")
 
 	// Parse flags

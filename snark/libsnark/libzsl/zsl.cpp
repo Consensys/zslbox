@@ -48,8 +48,8 @@ void zsl_initialize(uint tree_depth)
 {
     zsl::TREE_DEPTH = tree_depth;
     default_r1cs_ppzksnark_pp::init_public_params();
-    libff::inhibit_profiling_info = false;
-    libff::inhibit_profiling_counters = false;
+    libff::inhibit_profiling_info = true;
+    libff::inhibit_profiling_counters = true;
 }
 
 
@@ -75,13 +75,18 @@ void loadFromFile(string path, T& objIn) {
     ss >> objIn;
 }
 
-void zsl_load_keys() {
+void zsl_load_shielding_keys() {
     loadFromFile("/keys/shielding.vk", zsl::vkShielding);
-    loadFromFile("/keys/unshielding.vk", zsl::vkUnshielding);
-    loadFromFile("/keys/transfer.vk", zsl::vkTransfer);
-
     loadFromFile("/keys/shielding.pk", zsl::pkShielding);
+}
+
+void zsl_load_unshielding_keys() {
+    loadFromFile("/keys/unshielding.vk", zsl::vkUnshielding);
     loadFromFile("/keys/unshielding.pk", zsl::pkUnshielding);
+}
+
+void zsl_load_transfer_keys() {
+    loadFromFile("/keys/transfer.vk", zsl::vkTransfer);
     loadFromFile("/keys/transfer.pk", zsl::pkTransfer);
 }
 

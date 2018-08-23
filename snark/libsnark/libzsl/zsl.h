@@ -54,7 +54,9 @@ extern "C" {
         uint64_t value
     );
 
-    void zsl_load_keys();
+    void zsl_load_shielding_keys();
+    void zsl_load_unshielding_keys();
+    void zsl_load_transfer_keys();
     void zsl_paramgen_unshielding();
 
     void zsl_paramgen_transfer();

@@ -27,10 +27,21 @@ import (
 )
 
 // Init() is only ever called once
-var onceInit sync.Once
+var (
+	onceInit          sync.Once
+	shieldingLoaded   sync.RWMutex
+	unshieldingLoaded sync.RWMutex
+	transferLoaded    sync.RWMutex
+)
 
 func Init(treeDepth uint, keyDir string) {
 	onceInit.Do(func() {
+		// locking the mutexes mark the keys as "unloaded"
+		shieldingLoaded.Lock()
+		unshieldingLoaded.Lock()
+		transferLoaded.Lock()
+
+		// check that key directory is mounted
 		if _, err := os.Stat(keyDir); err != nil {
 			panic("key directory doesn't exist or is not mounted")
 		}
@@ -38,23 +49,41 @@ func Init(treeDepth uint, keyDir string) {
 		shieldingPath := filepath.Join(keyDir, "shielding.vk")
 		unshieldingPath := filepath.Join(keyDir, "unshielding.vk")
 
-		C.zsl_initialize(C.uint(treeDepth)) // TODO, pass keyDir there too.
+		// initialize curve parameters
+		C.zsl_initialize(C.uint(treeDepth))
 
-		// when init is called, ensure that keys are found in /keys/...
-		if _, err := os.Stat(transferPath); os.IsNotExist(err) {
-			fmt.Printf("couldn't find %s, generating...\n", transferPath)
-			C.zsl_paramgen_transfer()
-		}
+		// If absent, generate shielding keys
 		if _, err := os.Stat(shieldingPath); os.IsNotExist(err) {
 			fmt.Printf("couldn't find %s, generating...\n", shieldingPath)
 			C.zsl_paramgen_shielding()
 		}
+		go func() {
+			C.zsl_load_shielding_keys()
+			shieldingLoaded.Unlock()
+			fmt.Println("loaded shielding keys")
+		}()
+
+		// If absent, generate unshielding keys
 		if _, err := os.Stat(unshieldingPath); os.IsNotExist(err) {
 			fmt.Printf("couldn't find %s, generating...\n", unshieldingPath)
 			C.zsl_paramgen_unshielding()
 		}
+		go func() {
+			C.zsl_load_unshielding_keys()
+			unshieldingLoaded.Unlock()
+			fmt.Println("loaded unshielding keys")
+		}()
 
-		C.zsl_load_keys()
+		// If absent, generate shielded transfer keys
+		if _, err := os.Stat(transferPath); os.IsNotExist(err) {
+			fmt.Printf("couldn't find %s, generating...\n", transferPath)
+			C.zsl_paramgen_transfer()
+		}
+		go func() {
+			C.zsl_load_transfer_keys()
+			transferLoaded.Unlock()
+			fmt.Println("loaded shieldedTransfer keys")
+		}()
 	})
 }
 
@@ -102,6 +131,11 @@ func ProveTransfer(inputRho1 []byte,
 		C.free(ptrInputTreePath2)
 	}()
 
+	// wait keys loaded
+	transferLoaded.RLock()
+	transferLoaded.RUnlock()
+
+	// call C function
 	C.zsl_prove_transfer(ptrInputRho1,
 		ptrInputSk1,
 		C.uint64_t(inputValue1),
@@ -135,6 +169,11 @@ func ProveShielding(rho []byte, pk []byte, value uint64) []byte {
 		C.free(ptrRho)
 	}()
 
+	// wait keys loaded
+	shieldingLoaded.RLock()
+	shieldingLoaded.RUnlock()
+
+	// call C function
 	C.zsl_prove_shielding(ptrRho, ptrPk, C.uint64_t(value), unsafe.Pointer(&toReturn[0]))
 
 	return toReturn
@@ -158,6 +197,11 @@ func ProveUnshielding(rho []byte,
 		C.free(ptrTreePath)
 	}()
 
+	// wait keys loaded
+	unshieldingLoaded.RLock()
+	unshieldingLoaded.RUnlock()
+
+	// call C function
 	C.zsl_prove_unshielding(ptrRho,
 		ptrSk,
 		C.uint64_t(value),
@@ -200,6 +244,11 @@ func VerifyTransfer(proof []byte,
 		C.free(ptrTreeRoot)
 	}()
 
+	// wait keys loaded
+	transferLoaded.RLock()
+	transferLoaded.RUnlock()
+
+	// call C function
 	if C.zsl_verify_transfer(ptrProof,
 		ptrTreeRoot,
 		ptrSpendNullifier1,
@@ -225,6 +274,10 @@ func VerifyShielding(proof []byte, sendNullifier []byte, commitment []byte, valu
 		C.free(ptrProof)
 	}()
 
+	// wait keys loaded
+	shieldingLoaded.RLock()
+	shieldingLoaded.RUnlock()
+
 	// call C function
 	if C.zsl_verify_shielding(ptrProof, ptrSendNullifier, ptrCommitment, C.uint64_t(value)) {
 		return true
@@ -244,6 +297,11 @@ func VerifyUnshielding(proof []byte, spendNullifier []byte, treeRoot []byte, val
 		C.free(ptrProof)
 	}()
 
+	// wait keys loaded
+	unshieldingLoaded.RLock()
+	unshieldingLoaded.RUnlock()
+
+	// call C function
 	if C.zsl_verify_unshielding(ptrProof, ptrSpendNullifier, ptrTreeRoot, C.uint64_t(value)) {
 		return true
 	}
