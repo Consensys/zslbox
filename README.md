@@ -175,6 +175,7 @@ ZSLBox uses [dep](https://golang.github.io/dep/) for dependency management.
 ### Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our [code of conduct](CODE_OF_CONDUCT.md), and the process for submitting pull requests to us.
+Get in touch: privacy-dev@pegasys.tech
 
 ### Versioning
 
